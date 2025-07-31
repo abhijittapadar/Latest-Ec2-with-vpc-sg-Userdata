@@ -2,7 +2,7 @@ version: 0.2
 
 env:
   variables:
-    TERRAFORM_VERSION: "1.10.0"
+    TERRAFORM_VERSION: "1.12.2"
     TF_COMMAND: "apply"
   parameter-store:
     AWS_ACCESS_KEY_ID: "/CodeBuild/MY_AWS_ACCESS_KEY_ID"
