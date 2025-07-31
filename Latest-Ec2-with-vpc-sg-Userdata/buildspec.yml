@@ -2,9 +2,8 @@ version: 0.2
 
 env:
   variables:
-    TERRAFORM_VERSION: "1.10"
+    TERRAFORM_VERSION: "1.10.0"
     TF_COMMAND: "apply"
-    #TF_COMMAND: "destroy"
   parameter-store:
     AWS_ACCESS_KEY_ID: "/CodeBuild/MY_AWS_ACCESS_KEY_ID"
     AWS_SECRET_ACCESS_KEY: "/CodeBuild/MY_AWS_SECRET_ACCESS_KEY"
@@ -12,29 +11,41 @@ env:
 phases:
   install:
     runtime-versions:
-      python: 3.7
-    on-failure: ABORT       
+      python: 3.9
+    on-failure: ABORT
     commands:
-      - tf_version=$TERRAFORM_VERSION
-      - wget https://releases.hashicorp.com/terraform/"$TERRAFORM_VERSION"/terraform_"$TERRAFORM_VERSION"_linux_amd64.zip
-      - unzip terraform_"$TERRAFORM_VERSION"_linux_amd64.zip
+      - echo "Installing Terraform ${TERRAFORM_VERSION}..."
+      - wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+      - unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip
       - mv terraform /usr/local/bin/
-  pre_build:
-    on-failure: ABORT     
-    commands:
-      - echo terraform execution started on `date`            
-  build:
-    on-failure: ABORT   
-    commands:
-    # Project-1: AWS VPC, ASG, ALB, Route53, ACM, Security Groups and SNS 
-      - cd "$CODEBUILD_SRC_DIR/Latest-Ec2-with-vpc-sg-Userdata"
-      - ls -lrt "$CODEBUILD_SRC_DIR/Latest-Ec2-with-vpc-sg-Userdata"
       - terraform --version
+      - chmod +x terraform
+
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - echo "Terraform execution started on $(date)"
+      - cd "$CODEBUILD_SRC_DIR/Latest-Ec2-with-vpc-sg-Userdata" || exit 1
+      - ls -lrt
+
+  build:
+    on-failure: ABORT
+    commands:
+      - echo "Starting Terraform deployment..."
       - terraform init -input=false --backend-config=dev.conf
       - terraform validate
-      - terraform plan           
-      - terraform $TF_COMMAND -auto-approve  
+      - terraform plan -out=tfplan
+      - terraform ${TF_COMMAND} -auto-approve tfplan
+
   post_build:
-    on-failure: CONTINUE   
+    on-failure: CONTINUE
     commands:
-      - echo terraform execution completed on `date`
+      - echo "Terraform execution completed on $(date)"
+      - echo "Cleaning up temporary files..."
+      - rm -f terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+      - rm -f tfplan
+
+artifacts:
+  files:
+    - Latest-Ec2-with-vpc-sg-Userdata/**/*
+  discard-paths: no
